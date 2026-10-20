@@ -1,0 +1,8 @@
+.venv/
+.venv-windows/
+__pycache__/
+*.pyc
+library.db
+tmp/
+rpa/results/
+.env

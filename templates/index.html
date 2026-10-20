@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stacks - Library Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body data-role="{{ user.role }}">
+    <aside class="sidebar">
+      <a class="brand" href="#dashboard"
+        ><span>ST</span><strong>Stacks</strong></a
+      >
+      <p class="workspace">LIBRARY DESK</p>
+      <nav>
+        <a class="nav-link active" href="#dashboard" data-view="dashboard"
+          >Overview</a
+        ><a class="nav-link" href="#books" data-view="books">Catalogue</a>{% if
+        user.role in ['admin', 'librarian'] %}<a
+          class="nav-link"
+          href="#members"
+          data-view="members"
+          >Members</a
+        >{% endif %}<a class="nav-link" href="#loans" data-view="loans"
+          >Issue & returns</a
+        >{% if user.role in ['admin', 'librarian'] %}<a
+          class="nav-link"
+          href="#activity-log"
+          data-view="activity-log"
+          >User history</a
+        >{% endif %}{% if user.role == 'admin' %}<a
+          class="nav-link"
+          href="#automation"
+          data-view="automation"
+          >Automation</a
+        ><a
+          class="nav-link"
+          href="#automation-logs"
+          data-view="automation-logs"
+          >Automation log</a
+        >{% endif %}
+      </nav>
+      <div class="profile">
+        <div class="avatar">{{ user.name[:2].upper() }}</div>
+        <div>
+          <strong>{{ user.name }}</strong><small>{{ user.role|title }}</small>
+          <form action="/logout" method="post">
+            <button class="logout" type="submit">Log out</button>
+          </form>
+        </div>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow" id="today"></p>
+          <h1 id="page-title">Good morning, {{ user.name.split(' ')[0] }}</h1>
+        </div>
+        {% if user.role in ['admin', 'librarian'] %}<button
+          class="button primary"
+          data-open="issue-modal"
+        >
+          + Issue book</button
+        >{% endif %}
+      </header>
+      <div id="toast" role="status"></div>
+      <section class="view active" id="dashboard">
+        <div class="hero">
+          <div>
+            <p class="eyebrow">LIBRARY AT A GLANCE</p>
+            <h2>Everything is in its place.</h2>
+            <p>
+              {% if user.role == 'student' %}Explore the catalogue and view your
+              own borrowing activity.{% else %}Manage your collection, members,
+              and lending from one calm workspace.{% endif %}
+            </p>
+          </div>
+          {% if user.role in ['admin', 'librarian'] %}<button
+            class="button light"
+            data-open="book-modal"
+          >
+            Add a book</button
+          >{% endif %}
+        </div>
+        <div class="stats" id="stats"></div>
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CURRENT ACTIVITY</p>
+              <h2>
+                {% if user.role == 'student' %}My active loans{% else %}Active
+                loans{% endif %}
+              </h2>
+            </div>
+            <a href="#loans" class="text-link" data-view="loans">View all</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Book</th>
+                  <th>
+                    {% if user.role != 'student' %}Member{% else %}Status{%
+                    endif %}
+                  </th>
+                  <th>Issued</th>
+                  <th>Due date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="recent-loans"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section class="view" id="books">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">INVENTORY</p>
+            <h2>Book catalogue</h2>
+          </div>
+          {% if user.role in ['admin', 'librarian'] %}<button
+            class="button primary"
+            data-open="book-modal"
+          >
+            + Add book</button
+          >{% endif %}
+        </div>
+        <div class="toolbar">
+          <input
+            id="book-search"
+            placeholder="Search title, author, or ISBN"
+          /><span id="book-count"></span>
+        </div>
+        <div class="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Category</th>
+                <th>ISBN</th>
+                <th>Availability</th>
+              </tr>
+            </thead>
+            <tbody id="books-table"></tbody>
+          </table>
+        </div>
+      </section>
+      {% if user.role in ['admin', 'librarian'] %}
+      <section class="view" id="members">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">COMMUNITY</p>
+            <h2>Members</h2>
+          </div>
+          <button class="button primary" data-open="member-modal">
+            + Add member
+          </button>
+        </div>
+        <div class="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="members-table"></tbody>
+          </table>
+        </div>
+      </section>
+      {% endif %}
+      <section class="view" id="loans">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">LENDING DESK</p>
+            <h2>
+              {% if user.role == 'student' %}My loans{% else %}Issue & returns{%
+              endif %}
+            </h2>
+          </div>
+          {% if user.role in ['admin', 'librarian'] %}<button
+            class="button primary"
+            data-open="issue-modal"
+          >
+            + Issue book</button
+          >{% endif %}
+        </div>
+        <div class="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Book{% if user.role != 'student' %} / Member{% endif %}</th>
+                <th>Issued</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th>Fine</th>
+                {% if user.role in ['admin', 'librarian'] %}
+                <th>Action</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody id="loans-table"></tbody>
+          </table>
+        </div>
+      </section>
+      {% if user.role == 'admin' %}
+      <section class="view" id="automation">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">RPA OPERATIONS</p>
+            <h2>Automation centre</h2>
+          </div>
+        </div>
+        <div class="automation-grid">
+          <article class="card automation-card">
+            <div class="icon">↻</div>
+            <h3>Overdue scan</h3>
+            <p>
+              Check active loans against due dates and queue member reminders.
+            </p>
+            <button class="button secondary" id="run-overdue">
+              Run overdue check
+            </button>
+            <p class="status" id="automation-status" aria-live="polite">
+              Ready to run the overdue reminder bot.
+            </p>
+          </article>
+          <article class="card automation-card">
+            <div class="icon">↓</div>
+            <h3>Loan activity report</h3>
+            <p>
+              Export current and historical issue, return, and fine records.
+            </p>
+            <a class="button secondary" href="/api/reports/loans.csv"
+              >Download CSV</a
+            >
+          </article>
+          <article class="card automation-card">
+            <div class="icon">🔔</div>
+            <h3>Courtesy due reminder</h3>
+            <p>
+              Send advance notice to members whose books are due today or tomorrow.
+            </p>
+            <button class="button secondary" id="run-courtesy">
+              Run courtesy check
+            </button>
+            <p class="status" id="courtesy-status" aria-live="polite">
+              Ready to run courtesy reminder check.
+            </p>
+          </article>
+          <article class="card automation-card">
+            <div class="icon">📊</div>
+            <h3>Inventory health audit</h3>
+            <p>
+              Scan catalogue for depleted copies and export replenishment recommendations.
+            </p>
+            <button class="button secondary" id="run-inventory-audit">
+              Run inventory audit
+            </button>
+            <a class="button secondary" href="/api/reports/inventory-audit.csv" style="margin-top: 8px;"
+              >Download Audit CSV</a
+            >
+            <p class="status" id="inventory-audit-status" aria-live="polite">
+              Ready to run inventory audit.
+            </p>
+          </article>
+          <article class="card automation-card">
+            <div class="icon">📋</div>
+            <h3>Daily reconciliation digest</h3>
+            <p>
+              Aggregate today's circulation metrics and dispatch an executive digest to administration.
+            </p>
+            <button class="button secondary" id="run-daily-reconciliation">
+              Run daily digest
+            </button>
+            <p class="status" id="daily-reconciliation-status" aria-live="polite">
+              Ready to run daily financial reconciliation.
+            </p>
+          </article>
+          <article class="card automation-card">
+            <div class="icon">✉</div>
+            <h3>Member onboarding invitation</h3>
+            <p>
+              Scan unactivated member accounts and send automated login setup invitations.
+            </p>
+            <button class="button secondary" id="run-member-invitations">
+              Send invitations
+            </button>
+            <p class="status" id="member-invitations-status" aria-live="polite">
+              Ready to invite unactivated members.
+            </p>
+          </article>
+          <article class="card automation-card">
+            <div class="icon">📦</div>
+            <h3>Bulk catalogue CSV ingestion</h3>
+            <p>
+              Upload a CSV of acquisitions to validate ISBNs, detect duplicates, and bulk-load copies.
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <input type="file" id="catalogue-csv-input" accept=".csv,text/csv" style="display: none;" />
+              <button class="button secondary" type="button" id="select-catalogue-csv">Select CSV</button>
+              <button class="button secondary" type="button" id="upload-catalogue-csv" disabled>Ingest CSV</button>
+            </div>
+            <a class="button secondary" href="/api/templates/books-template.csv" style="margin-top: 4px;">Download template</a>
+            <p class="status" id="catalogue-csv-status" aria-live="polite">
+              Ready to ingest catalogue CSV.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section class="view" id="automation-logs">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">RPA HISTORY</p>
+            <h2>Automation log</h2>
+          </div>
+          <button class="button secondary" id="refresh-automation-logs">
+            Refresh logs
+          </button>
+        </div>
+        <div class="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student / Member</th>
+                <th>Book</th>
+                <th>Due date</th>
+                <th>Overdue days</th>
+                <th>Fine</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="automation-logs-table"></tbody>
+          </table>
+        </div>
+      </section>
+      {% endif %}
+      {% if user.role in ['admin', 'librarian'] %}
+      <section class="view" id="activity-log">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">STAFF AUDIT TRAIL</p>
+            <h2>User activity history</h2>
+          </div>
+          <button class="button secondary" id="refresh-activity-log">
+            Refresh history
+          </button>
+        </div>
+        <div class="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Action</th>
+                <th>Details</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="activity-log-table"></tbody>
+          </table>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+    {% if user.role in ['admin', 'librarian'] %}
+    <dialog id="book-modal">
+      <form id="book-form" class="modal">
+        <div class="modal-title">
+          <h2>Add book</h2>
+          <button type="button" class="close" data-close>×</button>
+        </div>
+        <label>Title<input name="title" required /></label
+        ><label>Author<input name="author" required /></label>
+        <div class="form-row">
+          <label>ISBN<input name="isbn" required /></label
+          ><label>Category<input name="category" required /></label>
+        </div>
+        <label
+          >Copies<input
+            type="number"
+            min="1"
+            name="total_copies"
+            value="1"
+            required /></label
+        ><button class="button primary" type="submit">Add to catalogue</button>
+      </form>
+    </dialog>
+    <dialog id="member-modal">
+      <form id="member-form" class="modal">
+        <div class="modal-title">
+          <h2>Add member</h2>
+          <button type="button" class="close" data-close>×</button>
+        </div>
+        <label>Full name<input name="name" required /></label
+        ><label>Email<input name="email" type="email" required /></label
+        ><label>Phone<input name="phone" /></label
+        ><button class="button primary" type="submit">Register member</button>
+      </form>
+    </dialog>
+    <dialog id="issue-modal">
+      <form id="issue-form" class="modal">
+        <div class="modal-title">
+          <h2>Issue a book</h2>
+          <button type="button" class="close" data-close>×</button>
+        </div>
+        <label
+          >Available book<select
+            name="book_id"
+            id="issue-books"
+            required
+          ></select></label
+        ><label
+          >Member<select name="member_id" id="issue-members" required></select
+        ></label>
+        <p class="form-note">
+          The due date is automatically set for 1 day from today.
+        </p>
+        <button class="button primary" type="submit">Issue book</button>
+      </form>
+    </dialog>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>
